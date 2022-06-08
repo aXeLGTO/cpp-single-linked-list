@@ -85,6 +85,7 @@ class SingleLinkedList {
         // Возвращает ссылку на самого себя
         // Инкремент итератора, не указывающего на существующий элемент списка, приводит к неопределённому поведению
         BasicIterator& operator++() noexcept {
+            assert(node_);
             node_ = node_->next_node;
             return *this;
         }
@@ -103,6 +104,7 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] reference operator*() const noexcept {
+            assert(node_);
             return node_->value;
         }
 
@@ -110,6 +112,7 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] pointer operator->() const noexcept {
+            assert(node_);
             return &node_->value;
         }
 
@@ -130,16 +133,18 @@ public:
     SingleLinkedList() = default;
 
     SingleLinkedList(std::initializer_list<Type> values) {
-        PushCopy(values);
+        PushCopy(values.begin(), values.end());
     }
 
     SingleLinkedList(const SingleLinkedList& other) {
-        PushCopy(other);
+        PushCopy(other.begin(), other.end());
     }
 
     SingleLinkedList& operator=(const SingleLinkedList& rhs) {
-        auto tmp(rhs);
-        swap(tmp);
+        if (this != &rhs) {
+            auto tmp(rhs);
+            swap(tmp);
+        }
         return *this;
     }
 
@@ -220,6 +225,7 @@ public:
      * Если при создании элемента будет выброшено исключение, список останется в прежнем состоянии
      */
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        assert(pos.node_);
         pos.node_->next_node = new Node(value, pos.node_->next_node);
         ++size_;
         return Iterator{pos.node_->next_node};
@@ -229,6 +235,7 @@ public:
         auto* ptr = head_.next_node;
         head_.next_node = ptr->next_node;
         delete ptr;
+        assert(size_);
         --size_;
     }
 
@@ -237,9 +244,11 @@ public:
      * Возвращает итератор на элемент, следующий за удалённым
      */
     Iterator EraseAfter(ConstIterator pos) noexcept {
+        assert(pos.node_ && pos.node_->next_node);
         auto* ptr = pos.node_->next_node;
         pos.node_->next_node = ptr->next_node;
         delete ptr;
+        assert(size_);
         --size_;
         return Iterator{pos.node_->next_node};
     }
@@ -265,12 +274,12 @@ public:
     }
 
 private:
-    template<typename Container>
-    void PushCopy(const Container& values) {
+    template<typename Iterator>
+    void PushCopy(Iterator begin, Iterator end) {
         try {
             auto* ptr = &head_;
-            for (const auto& value : values) {
-                ptr = ptr->next_node = new Node(value, nullptr);
+            for (auto it = begin; it != end; ++it) {
+                ptr = ptr->next_node = new Node(*it, nullptr);
                 ++size_;
             }
         } catch (const std::bad_alloc&) {
